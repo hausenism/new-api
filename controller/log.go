@@ -66,6 +66,10 @@ func GetAllLogs(c *gin.Context) {
 	} else {
 		model.FormatRootLogs(logs)
 	}
+	if err := model.PopulateLogAvatarColors(logs); err != nil {
+		// Cosmetic metadata must not make a separately stored log page unavailable.
+		common.SysError(common.LogText("failed to load user avatar colors: %s", err.Error()))
+	}
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(logs)
 	common.ApiSuccess(c, pageInfo)
@@ -87,6 +91,10 @@ func GetUserLogs(c *gin.Context) {
 	if err != nil {
 		common.ApiError(c, err)
 		return
+	}
+	if err := model.PopulateLogAvatarColors(logs); err != nil {
+		// Cosmetic metadata must not make a separately stored log page unavailable.
+		common.SysError(common.LogText("failed to load user avatar colors: %s", err.Error()))
 	}
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(logs)

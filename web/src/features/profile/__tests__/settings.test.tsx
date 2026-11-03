@@ -20,7 +20,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { api } from '@/lib/api'
+import { getUserAvatarColor } from '@/lib/avatar'
 import { ROLE } from '@/lib/roles'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { updateUserSettings } from '../api'
 import { NotificationTab } from '../components/tabs/notification-tab'
@@ -56,7 +58,10 @@ const settings = {
   upstream_model_update_notify_enabled: true,
 }
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.restoreAllMocks()
+  useAuthStore.getState().auth.reset()
+})
 
 /** The body a PUT sends over the wire: undefined fields are left out. */
 function sentBody(put: { mock: { calls: unknown[][] } }): unknown {
@@ -64,6 +69,51 @@ function sentBody(put: { mock: { calls: unknown[][] } }): unknown {
 }
 
 describe('user settings saves across profile and security', () => {
+  it('saves a selected avatar color and can restore the automatic color', async () => {
+    const savedProfile = {
+      ...profile,
+      setting: JSON.stringify({ avatar_color: '#123456' }),
+    }
+    vi.spyOn(api, 'get').mockResolvedValue({
+      data: { success: true, data: savedProfile },
+    })
+    const put = vi
+      .spyOn(api, 'put')
+      .mockResolvedValue({ data: { success: true } })
+    const onUpdate = vi.fn()
+    useAuthStore.getState().auth.setUser(savedProfile)
+    render(
+      <NotificationTab
+        profile={savedProfile}
+        onUpdate={onUpdate}
+        quotaRemindEnabled={false}
+        quotaRemindThreshold={0}
+      />
+    )
+    const color = screen.getByLabelText('Avatar color')
+    expect(color).toHaveValue('#123456')
+    fireEvent.change(color, { target: { value: '#abcdef' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
+    await waitFor(() =>
+      expect(put).toHaveBeenCalledWith(
+        '/api/user/setting',
+        expect.objectContaining({ avatar_color: '#abcdef' })
+      )
+    )
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1))
+    expect(getUserAvatarColor(useAuthStore.getState().auth.user?.setting)).toBe(
+      '#abcdef'
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Automatic color' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
+    await waitFor(() =>
+      expect(put).toHaveBeenLastCalledWith(
+        '/api/user/setting',
+        expect.objectContaining({ avatar_color: '' })
+      )
+    )
+  })
+
   it('disabling IP recording sends the latest complete notification settings', async () => {
     const get = vi.spyOn(api, 'get').mockResolvedValue({
       data: {

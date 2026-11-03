@@ -34,7 +34,11 @@ import {
 import useDialogState from '@/hooks/use-dialog'
 import { useIsSidebarModuleVisible } from '@/hooks/use-sidebar-config'
 import { useUserDisplay } from '@/hooks/use-user-display'
-import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
+import {
+  getUserAvatarColor,
+  getUserAvatarFallback,
+  getUserAvatarStyle,
+} from '@/lib/avatar'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -51,9 +55,10 @@ export function ProfileDropdown() {
   const isSecurityVisible = useIsSidebarModuleVisible('/security')
   const avatarName = user?.username || displayName
   const avatarFallback = getUserAvatarFallback(avatarName)
+  const avatarColor = getUserAvatarColor(user?.setting)
   const avatarFallbackStyle = useMemo(
-    () => getUserAvatarStyle(avatarName),
-    [avatarName]
+    () => getUserAvatarStyle(avatarName, avatarColor),
+    [avatarName, avatarColor]
   )
 
   return (

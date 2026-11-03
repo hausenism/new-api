@@ -26,12 +26,18 @@ import { GroupBadge } from '@/components/group-badge'
 import { LongText } from '@/components/long-text'
 import { StatusBadge } from '@/components/status-badge'
 import { TableId } from '@/components/table-id'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  getUserAvatarColor,
+  getUserAvatarFallback,
+  getUserAvatarStyle,
+} from '@/lib/avatar'
 import { getCurrencyDisplay } from '@/lib/currency'
 import { formatQuota } from '@/lib/format'
 import { useSystemConfigStore } from '@/stores/system-config-store'
@@ -103,6 +109,16 @@ export function useUsersColumns(): ColumnDef<User>[] {
           return (
             <div className='flex min-w-[160px] flex-col gap-1'>
               <div className='flex items-center gap-2'>
+                <Avatar size='sm'>
+                  <AvatarFallback
+                    style={getUserAvatarStyle(
+                      username,
+                      getUserAvatarColor(row.original.setting)
+                    )}
+                  >
+                    {getUserAvatarFallback(username)}
+                  </AvatarFallback>
+                </Avatar>
                 <LongText className='max-w-[140px] text-sm font-normal'>
                   {username}
                 </LongText>

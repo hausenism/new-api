@@ -647,6 +647,109 @@ func TestManageUserQuotaCacheUsesCommittedIntegerDifference(t *testing.T) {
 // form does not manage stay, and switches an older client leaves out keep
 // their stored values. Only administrators change the channel and upstream
 // switches, and a threshold of 0 means the site default.
+func TestLogAvatarColorsFollowUserID(t *testing.T) {
+	db := setupManageUserTestDB(t)
+	user := model.User{Username: "renamed-owner", Role: common.RoleCommonUser, Setting: `{"avatar_color":"#123456","webhook_secret":"private-setting"}`}
+	require.NoError(t, db.Create(&user).Error)
+	logs := []model.Log{
+		{UserId: user.Id, Username: "old-name", Type: model.LogTypeConsume},
+		{UserId: user.Id + 1, Username: "missing", Type: model.LogTypeConsume},
+	}
+	require.NoError(t, model.LOG_DB.Create(&logs).Error)
+	for _, self := range []bool{false, true} {
+		t.Run(fmt.Sprintf("self=%t", self), func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodGet, "/api/log/", nil)
+			c.Set("id", user.Id)
+			c.Set("role", common.RoleRootUser)
+			if self {
+				GetUserLogs(c)
+			} else {
+				GetAllLogs(c)
+			}
+			require.Contains(t, recorder.Body.String(), `"success":true`)
+			var response struct {
+				Data struct {
+					Items []map[string]any `json:"items"`
+				} `json:"data"`
+			}
+			require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+			var colored bool
+			for _, item := range response.Data.Items {
+				if item["username"] == "old-name" {
+					assert.Equal(t, "#123456", item["avatar_color"])
+					colored = true
+				} else {
+					assert.Empty(t, item["avatar_color"])
+				}
+			}
+			assert.True(t, colored)
+			assert.NotContains(t, recorder.Body.String(), "private-setting")
+		})
+	}
+	t.Run("unavailable preferences keep logs readable", func(t *testing.T) {
+		require.NoError(t, db.Callback().Query().Before("gorm:query").Register("test:avatar_lookup_error", func(tx *gorm.DB) {
+			if tx.Statement.Table == "users" {
+				tx.AddError(errors.New("preferences unavailable"))
+			}
+		}))
+		t.Cleanup(func() { _ = db.Callback().Query().Remove("test:avatar_lookup_error") })
+		recorder := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(recorder)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/log/", nil)
+		c.Set("role", common.RoleRootUser)
+		GetAllLogs(c)
+		assert.Contains(t, recorder.Body.String(), `"success":true`)
+		assert.Contains(t, recorder.Body.String(), "old-name")
+		assert.NotContains(t, recorder.Body.String(), "avatar_color")
+	})
+}
+
+func TestAvatarColorSetting(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, want string
+		success          bool
+	}{
+		{"set", `"#12AbEF"`, "#12AbEF", true},
+		{"reset", `""`, "", true},
+		{"omitted", "", "#123456", true},
+		{"invalid", `"red"`, "#123456", false},
+		{"css", `"url(https://example.com)"`, "#123456", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := setupManageUserTestDB(t)
+			user := model.User{Username: "avatar-owner", Role: common.RoleCommonUser, Setting: `{"avatar_color":"#123456","language":"ja"}`}
+			require.NoError(t, db.Create(&user).Error)
+			body := `{"notify_type":"email"`
+			if tc.body != "" {
+				body += `,"avatar_color":` + tc.body
+			}
+			body += `}`
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodPut, "/api/user/setting", strings.NewReader(body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Set("id", user.Id)
+			UpdateUserSetting(c)
+			assert.Contains(t, recorder.Body.String(), fmt.Sprintf(`"success":%t`, tc.success))
+			require.NoError(t, db.First(&user, user.Id).Error)
+			var setting map[string]any
+			require.NoError(t, common.UnmarshalJsonStr(user.Setting, &setting))
+			if tc.want == "" {
+				assert.Empty(t, setting["avatar_color"])
+			} else {
+				assert.Equal(t, tc.want, setting["avatar_color"])
+			}
+			assert.Equal(t, "ja", setting["language"])
+		})
+	}
+}
+
+// The notification form starts with the saved settings. Fields that the
+// form does not manage stay, and switches an older client leaves out keep
+// their stored values. Only administrators change the channel and upstream
+// switches, and a threshold of 0 means the site default.
 func TestUpdateUserSettingKeepsWhatTheRequestLeavesOut(t *testing.T) {
 	on, off := true, false
 	stored := dto.UserSetting{

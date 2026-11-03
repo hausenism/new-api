@@ -1316,6 +1316,7 @@ func TopUp(c *gin.Context) {
 }
 
 type UpdateUserSettingRequest struct {
+	AvatarColor                      *string `json:"avatar_color"`
 	QuotaWarningType                 string  `json:"notify_type"`
 	QuotaWarningThreshold            float64 `json:"quota_warning_threshold"`
 	QuotaWarningEnabled              *bool   `json:"quota_warning_enabled,omitempty"`
@@ -1337,6 +1338,13 @@ func UpdateUserSetting(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ApiErrorT(c, "Invalid parameters")
 		return
+	}
+
+	if req.AvatarColor != nil && *req.AvatarColor != "" {
+		if len(*req.AvatarColor) != 7 || common.Validate.Var(*req.AvatarColor, "hexcolor") != nil {
+			common.ApiErrorT(c, "Invalid parameters")
+			return
+		}
 	}
 
 	// 验证预警类型
@@ -1422,6 +1430,9 @@ func UpdateUserSetting(c *gin.Context) {
 	// 从已保存的设置出发，语言、侧边栏、扣费策略等不由此表单管理的字段保持不变；
 	// 请求未携带的开关也保持原值
 	settings := user.GetSetting()
+	if req.AvatarColor != nil {
+		settings.AvatarColor = *req.AvatarColor
+	}
 	settings.NotifyType = req.QuotaWarningType
 	settings.QuotaWarningThreshold = req.QuotaWarningThreshold
 	settings.AcceptUnsetRatioModel = req.AcceptUnsetModelRatioModel

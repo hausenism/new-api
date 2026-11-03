@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { PasswordInput } from '@/components/password-input'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,6 +33,7 @@ import {
   SettingsControlGroup,
   SettingsSwitchField,
 } from '@/features/system-settings/components/settings-form-layout'
+import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
 import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
 import {
   formatQuota,
@@ -132,6 +134,43 @@ export function NotificationTab({
 
   return (
     <div className='space-y-4 sm:space-y-6'>
+      <div className='space-y-2'>
+        <Label htmlFor='avatarColor'>{t('Avatar color')}</Label>
+        <p className='text-muted-foreground text-xs sm:text-sm'>
+          {t(
+            'Choose your avatar color in the console and usage logs. Leave it automatic to use your username color.'
+          )}
+        </p>
+        <div className='flex items-center gap-3'>
+          <Avatar aria-label={t('Avatar preview')}>
+            <AvatarFallback
+              style={getUserAvatarStyle(
+                profile?.username || '',
+                settings.avatar_color
+              )}
+            >
+              {getUserAvatarFallback(profile?.username || '')}
+            </AvatarFallback>
+          </Avatar>
+          <Input
+            id='avatarColor'
+            type='color'
+            className='h-9 w-14 cursor-pointer p-1'
+            value={settings.avatar_color || '#3b82f6'}
+            onChange={(event) =>
+              updateField('avatar_color', event.target.value)
+            }
+            disabled={loading}
+          />
+          <Button
+            variant='outline'
+            onClick={() => updateField('avatar_color', '')}
+            disabled={loading || !settings.avatar_color}
+          >
+            {t('Automatic color')}
+          </Button>
+        </div>
+      </div>
       {!quotaRemindEnabled && !isAdmin && (
         <p className='text-muted-foreground text-sm'>
           {t('No notifications are available to you right now')}

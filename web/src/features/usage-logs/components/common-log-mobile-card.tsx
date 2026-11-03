@@ -249,7 +249,7 @@ export function CommonLogMobileCard<TData>(props: {
                         className='text-[11px] font-semibold'
                         style={
                           context.sensitiveVisible
-                            ? getUserAvatarStyle(log.username)
+                            ? getUserAvatarStyle(log.username, log.avatar_color)
                             : undefined
                         }
                       >

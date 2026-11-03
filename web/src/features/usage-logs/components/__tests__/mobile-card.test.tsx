@@ -97,6 +97,16 @@ function renderLogs(props: Parameters<typeof Fixture>[0] = {}) {
   )
 }
 
+it('renders the configured avatar color and hides it with sensitive user data', async () => {
+  const user = userEvent.setup()
+  const coloredLog = usageLogSchema.parse({ ...log, avatar_color: '#123456' })
+  const { container } = renderLogs({ logs: [coloredLog] })
+  const avatar = container.querySelector('[data-slot="avatar-fallback"]')
+  expect(avatar).toHaveStyle({ backgroundColor: '#123456' })
+  await user.click(screen.getByRole('button', { name: 'Hide sensitive data' }))
+  expect(avatar).not.toHaveStyle({ backgroundColor: '#123456' })
+})
+
 it('shows model mismatch evidence when tapping the mobile model badge', async () => {
   const user = userEvent.setup()
   renderLogs({

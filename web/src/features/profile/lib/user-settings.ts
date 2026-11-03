@@ -20,13 +20,18 @@ import { NOTIFICATION_METHODS } from '../constants'
 import type { NotifyType, UpdateUserSettingsRequest } from '../types'
 import { parseUserSettings } from './format'
 
-/** Switches whose absence means "never chosen", which the server resolves */
-type DefaultedSwitch = 'quota_warning_enabled' | 'channel_notify_enabled'
+/** Optional preferences must stay absent when the user has never chosen them. */
+type OptionalPreference =
+  | 'quota_warning_enabled'
+  | 'channel_notify_enabled'
+  | 'avatar_color'
 
 type NormalizedUserSettings = Required<
-  Omit<UpdateUserSettingsRequest, DefaultedSwitch>
+  Omit<UpdateUserSettingsRequest, OptionalPreference>
 > &
-  Pick<UpdateUserSettingsRequest, DefaultedSwitch> & { notify_type: NotifyType }
+  Pick<UpdateUserSettingsRequest, OptionalPreference> & {
+    notify_type: NotifyType
+  }
 
 /**
  * Settings sent back on every save. A switch the user never chose stays
@@ -41,6 +46,7 @@ export function normalizeUserSettings(
     NOTIFICATION_METHODS.find((method) => method.value === parsed.notify_type)
       ?.value ?? 'email'
   return {
+    avatar_color: parsed.avatar_color,
     notify_type: notifyType,
     quota_warning_threshold: parsed.quota_warning_threshold ?? 0,
     quota_warning_enabled: parsed.quota_warning_enabled,

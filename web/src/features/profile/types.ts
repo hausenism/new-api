@@ -96,6 +96,8 @@ export type NotifyType = 'email' | 'webhook' | 'bark' | 'gotify'
  * Parsed user settings
  */
 export interface UserSettings {
+  /** Empty selects the deterministic automatic avatar color. */
+  avatar_color?: string
   /** Notification type */
   notify_type?: NotifyType
   /** Quota warning threshold in quota units; 0 or absent uses the site default */
@@ -154,6 +156,7 @@ export interface EmailBindingFlow extends AccountSecurityResult {
  * User settings update request
  */
 export interface UpdateUserSettingsRequest {
+  avatar_color?: string
   notify_type?: string
   quota_warning_threshold?: number
   quota_warning_enabled?: boolean

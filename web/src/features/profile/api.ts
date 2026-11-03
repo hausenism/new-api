@@ -19,8 +19,9 @@ For commercial licensing, please contact support@quantumnous.com
 import { api } from '@/lib/api'
 import type { CustomOAuthBinding } from '@/lib/oauth'
 import { authRequestOptions, authResult } from '@/lib/secure-verification'
-import type { LoginSession } from '@/stores/auth-store'
+import { useAuthStore, type LoginSession } from '@/stores/auth-store'
 
+import { parseUserSettings } from './lib/format'
 import { normalizeUserSettings } from './lib/user-settings'
 import type {
   ApiResponse,
@@ -85,6 +86,20 @@ export async function updateUserSettings(
   }
   const settings = normalizeUserSettings(profile.data.setting)
   const res = await api.put('/api/user/setting', { ...settings, ...data })
+  const auth = useAuthStore.getState().auth
+  if (
+    res.data.success &&
+    data.avatar_color !== undefined &&
+    auth.user?.id === profile.data.id
+  ) {
+    auth.setUser({
+      ...auth.user,
+      setting: {
+        ...parseUserSettings(profile.data.setting),
+        avatar_color: data.avatar_color,
+      },
+    })
+  }
   return res.data
 }
 

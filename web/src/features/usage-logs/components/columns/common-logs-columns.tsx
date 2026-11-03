@@ -584,7 +584,7 @@ export function useCommonLogsColumns(
                     )}
                     style={
                       sensitiveVisible
-                        ? getUserAvatarStyle(log.username)
+                        ? getUserAvatarStyle(log.username, log.avatar_color)
                         : undefined
                     }
                   >

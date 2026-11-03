@@ -55,6 +55,7 @@ func sanitizeClickHouseLikePattern(input string) (string, error) {
 }
 
 type Log struct {
+	AvatarColor       string `json:"avatar_color,omitempty" gorm:"-:all"` // Current preference; not part of the stored log.
 	Id                int    `json:"id" gorm:"index:idx_created_at_id,priority:2;index:idx_user_id_id,priority:2"`
 	UserId            int    `json:"user_id" gorm:"index;index:idx_user_id_id,priority:1"`
 	CreatedAt         int64  `json:"created_at" gorm:"bigint;index:idx_created_at_id,priority:1;index:idx_created_at_type"`
@@ -76,6 +77,36 @@ type Log struct {
 	RequestId         string `json:"request_id,omitempty" gorm:"type:varchar(64);index:idx_logs_request_id;default:''"`
 	UpstreamRequestId string `json:"upstream_request_id,omitempty" gorm:"type:varchar(128);index:idx_logs_upstream_request_id;default:''"`
 	Other             string `json:"other"`
+}
+
+// PopulateLogAvatarColors resolves current preferences by stable user ID in one
+// primary-database query, including when logs live in a separate database.
+func PopulateLogAvatarColors(logs []*Log) error {
+	ids := make(map[int]struct{})
+	for _, log := range logs {
+		if log.UserId > 0 {
+			ids[log.UserId] = struct{}{}
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	userIDs := make([]int, 0, len(ids))
+	for id := range ids {
+		userIDs = append(userIDs, id)
+	}
+	var users []User
+	if err := DB.Unscoped().Select("id", "setting").Where("id IN ?", userIDs).Find(&users).Error; err != nil {
+		return err
+	}
+	colors := make(map[int]string, len(users))
+	for _, user := range users {
+		colors[user.Id] = user.GetSetting().AvatarColor
+	}
+	for _, log := range logs {
+		log.AvatarColor = colors[log.UserId]
+	}
+	return nil
 }
 
 // don't use iota, avoid change log type value
